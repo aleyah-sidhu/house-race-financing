@@ -36,6 +36,7 @@ MIN_RECEIPTS = 100000 #ignore any candidates who have raised less than this doll
 
 DATA_DIR = Path("data")
 OUT_DIR = Path("output")
+#where raw data is cached
 RAW_PATH = DATA_DIR / "raw_house_totals.csv"
 
 #columns expected from the candidate/totals endpoints
@@ -55,7 +56,9 @@ REQUIRED = [
 ## SOURCE THE DATA
 def fetch_house_totals():
     #go through API and return every house candidate totals
+    #collect each candidates record in rows and start at page 1 for returning API results
     rows, page = [], 1
+    #for each page
     while True:
         params = {
             "api_key": API_KEY,
@@ -74,8 +77,8 @@ def fetch_house_totals():
             print("Rate limited, waiting 60 seconds")
             time.sleep(60)
             continue
-        resp.raise_for_status()
-
+        resp.raise_for_status() #if request failed in non-429 way
+        #convert response to a dict and add to page's candidates
         payload = resp.json()
         rows.extend(payload["results"])
         total_pages = payload["pagination"]["pages"]
@@ -146,8 +149,8 @@ def summarize(df):
     summary = (
         df.groupby(["party_group", "status"])
         .agg(
-            candidates=("candidate_id", "count"),
-            total_raised=("receipts", "sum"),
+            candidates=("candidate_id", "count"), #num of candidates
+            total_raised=("receipts", "sum"), #total dollars raised
             large_donor_dollars=("individual_itemized_contributions", "sum"),
             pac_dollars=("other_political_committee_contributions", "sum"),
             median_pac_share=("pac_share", "median"),
@@ -160,8 +163,57 @@ def summarize(df):
 
     return summary
 
-## CHART OF SUMMARY
+## CHART OF SUMMARY: stacked horizontal bar chart
+def make_chart(summary):
+    OUT_DIR.mkdir(exist_ok=True)
 
+    #define new df for plot
+    plot_df = summary[
+        summary["party_group"].isin(["Democrat", "Republican"])
+        & summary["status"].isin(["Incumbent", "Challenger", "Open seat"])
+        & (summary["candidates"] >= 5) #keep only dems and rep, and groups with 5+ candidates
+    ].copy()
+    #create labels for plot
+    plot_df["label"] = plot_df["party_group"] + " " + plot_df["status"].str.lower()
+    #sort plot df by status and party group
+    plot_df = plot_df.sort_values(["status", "party_group"], ascending=[True, True])
+
+    #plot:
+    fig, ax = plt.subplots(figsize=(9,5))
+    left = pd.Series(0.0, index=plot_df.index) #where next segment should start on bar
+    parts = [
+        ("large_donor_share", "Large individual donors", "#1f4e79"),
+        ("pac_share", "PACs", "#e08e0b"),
+        ("other_share", "Everything else (incl. small donors)", "#b8c4cf"),
+    ]
+    for col, label, color in parts:
+        vals = plot_df[col] * 100 #convert to percentage
+        ax.barh(plot_df["label"], vals, left=left, label=label, color=color)
+        #add % label in each segment
+        for y, (v, l) in enumerate(zip(vals, left)):
+            if v >= 6:
+                ax.text(l + v / 2, y, f"{v:.0f}%", ha="center", va="center", fontsize=9, 
+                        color="white" if col != "other_share" else "black")
+        left = left + vals
+
+    ax.invert_yaxis()
+    ax.set_xlim(0, 100)
+    ax.set_xlabel("% of total receipts")
+    ax.set_title("Where 2026 House campaign money comes from", loc="left", fontsize=13, weight="bold")
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=3)
+
+    #footnote explaining data
+    plt.figtext(
+        0.01, 0.01,
+        "Large donors = itemized individual contributions (over $200 per donor per cycle). "
+        "'Everything else' also includes party transfers, loans, and self funding.\n"
+        "Source: Federal Election Commission (openFEC); candidates with $100k+ raised.",
+        fontsize=7.5, color="grey"
+    )
+    plt.tight_layout(rect=(0, 0.06, 1, 1))
+    plt.savefig(OUT_DIR / "funding_mix.png", dpi=200)
+    print(f"Saved chart to {OUT_DIR / 'funding_mix.png'}")
 
 ## MAIN EXECUTION
 if __name__ == "__main__":
@@ -174,3 +226,22 @@ if __name__ == "__main__":
     summary = summarize(data)
     OUT_DIR.mkdir(exist_ok=True)
     summary.to_csv(OUT_DIR / "summary_by_party_status.csv", index=False)
+
+    #make printed numbers easier to read (3 decimals, wider lines)
+    pd.set_option("display.float_format", lambda x: f"{x:,.3f}")
+    pd.set_option("display.width", 200)
+    print("\n===Dollar-weighted funding mix by party and status ===")
+    print(summary[["party_group", "status", "candidates", "total_raised", "large_donor_share", "pac_share", "other_share"]].to_string(index=False))
+
+    cols = ["name", "party", "state", "district", "status", "receipts"]
+    print("\n=== 10 candidates most reliant on PACS (min $500k raised) ===")
+    big = data[data["receipts"] >= 500000]
+    print(big.nlargest(10, "pac_share")[cols + ["pac_share"]].to_string(index=False))
+
+    print("\n=== 10 candidates most reliant on large individual donors (min $500k raised) ===")
+    print(big.nlargest(10, "large_donor_share")[cols + ["large_donor_share"]].to_string(index=False))
+
+    print("\n=== 10 candidates who raised the most in total ===")
+    print(data.nlargest(10, "receipts")[cols].to_string(index=False))
+
+    make_chart(summary) 
