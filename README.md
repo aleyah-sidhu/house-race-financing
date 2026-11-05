@@ -9,7 +9,7 @@
 2. **Democratic challengers and open-seat candidates were mostly funded by large individual donors** (52% and 57% of receipts), compared with 30% and 32% for their Republican counterparts. Republican challengers and open-seat candidates drew most of their funding (64% and 61%) from the "everything else" category, which can't be accurately broken down further (see limitations).
 3. **Democrats filled 8 of the 10 biggest fundraising totals**, led by Alexandria Ocasio-Cortez ($38.0M). Four of these eight were incumbents, including David Trone ($26.2M)
 
-## Method (to be updated)
+## Method
 - Data: Find candidate-level fundraising totals for the 2026 election cycle from the Federal Election Commission's openFEC API, pulled on 11/3/2026. Filings cover reporting periods through 11/03/2026.
 - Sample: 1320 House candidates who raised at least $100,000.
 - Large donors: Itemized individual contributions (donors who gave more than $200 in total over the cycle).
@@ -22,7 +22,7 @@
 - Totals are snapshots of the latest filings and will change.
 - Campaign money isn't the same as outside spending by super PACs, which isn't included.
 
-## Reproduce it (to be updated)
+## Reproduce it
 ```bash
 pip install requests pandas matplotlib
 export FEC_API_KEY=yor_key
