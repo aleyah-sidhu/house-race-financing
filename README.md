@@ -4,6 +4,8 @@
 
 **Incumbents in both parties lean on PACs far more than challengers or open-seat candidates: PACs supplied 27% of funding for Democratic imcumbents and 30% of funding for Republican incumbents, versus 5%-7% for challengers and open-seat candidates.**
 
+![Chart](output/funding_mix.png)
+
 ## What I found
 1. **PAC money follows incumbency, not party.** PACs gave 27% pf Democratic and 30% of Republican incumbents' receipts, compared with 5% for Democrat challengers and 6% for Republican challengers. The ten candidates most reliant on PACs (70% to 80% of receipts) are all incumbents.
 2. **Democratic challengers and open-seat candidates were mostly funded by large individual donors** (52% and 57% of receipts), compared with 30% and 32% for their Republican counterparts. Republican challengers and open-seat candidates drew most of their funding (64% and 61%) from the "everything else" category, which can't be accurately broken down further (see limitations).
